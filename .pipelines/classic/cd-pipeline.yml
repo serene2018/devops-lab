@@ -1,0 +1,49 @@
+trigger: none
+
+pr: none
+
+variables:
+- template: variables/pipeline-vars.yml
+- name: devEnvironment
+  value: dev
+
+
+#Download Resource
+resources:
+  pipelines:
+  - pipeline: cipipeline
+    # TODO: Update with the name of your CI pipeline
+    source: 'CI'
+    trigger:
+      branches:
+      - main
+
+stages:
+- stage: DEV
+  displayName: 'DEV Deployment'
+  variables:
+  - template: variables/pipeline-vars.yml
+  jobs:
+  - deployment: deploy_logicapp_resources
+    displayName: Deploy Logic App
+    # pool:
+    #   vmImage: 'ubuntu-latest'
+    environment: $(devEnvironment)
+    variables:
+      deploymentMode: 'Incremental'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          
+           - task: AzureCLI@2
+             displayName: 'Deploy Logic App Workflows'
+             inputs:
+               azureSubscription: 'LAStandard' 
+               scriptType: 'bash'
+               scriptLocation: 'inlineScript'
+               inlineScript: |
+                 az logicapp deployment source config-zip \
+                    --resource-group $(resourceGroupName) \
+                    --name $(logicAppName) \
+                    --src '$(Pipeline.Workspace)/cipipeline/$(logicAppCIArtifactName)/$(resources.pipeline.cipipeline.runID).zip'
